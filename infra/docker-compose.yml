@@ -1,0 +1,82 @@
+version: "3.9"
+name: yohpal-live-ai-content-factory
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: yohpal_live_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: yohpal_live_ai
+    ports:
+      - "5441:5432"
+    volumes:
+      - yohpal_postgres_data:/var/lib/postgresql/data
+    networks:
+      - yohpal_live_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d yohpal_live_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: yohpal_live_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - yohpal_live_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: yohpal_live_zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - yohpal_live_net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: yohpal_live_kafka
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    networks:
+      - yohpal_live_net
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: yohpal_live_zookeeper:2181
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://yohpal_live_kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+networks:
+  yohpal_live_net:
+    driver: bridge
+
+volumes:
+  yohpal_postgres_data:

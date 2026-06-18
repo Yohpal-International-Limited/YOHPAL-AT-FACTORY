@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VideoStatus {
+  DRAFT
+  SCRIPTED
+  RENDERING
+  MODERATION
+  APPROVED
+  PUBLISHED
+  REJECTED
+  FAILED
+}
+
+enum ModerationAction {
+  ALLOW
+  LIMIT
+  REVIEW
+  BLOCK
+}
+
+enum AdCampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  CANCELLED
+}
+
+model Creator {
+  id             String        @id @default(uuid())
+  username       String        @unique
+  displayName    String?
+  bio            String?
+  trustScore     Float         @default(80)
+  followers      Int           @default(0)
+  engagementRate Float         @default(0)
+  isAiCreator    Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  twin           CreatorTwin?
+  videos         Video[]
+
+  @@index([trustScore])
+  @@index([isAiCreator])
+}
+
+model CreatorTwin {
+  id               String   @id @default(uuid())
+  creatorId        String   @unique
+  tone             String
+  styleProfile     Json
+  audienceProfile  Json
+  preferredTopics  Json
+  knowledgeGraph   Json?
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  creator          Creator  @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+}
+
+model Avatar {
+  id          String   @id @default(uuid())
+  name        String
+  category    String
+  gender      String
+  ageGroup    String
+  voiceId     String
+  modelUrl    String
+  language    String   @default("en")
+  region      String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  videos      Video[]
+
+  @@index([category])
+  @@index([language])
+  @@index([region])
+}
+
+model Trend {
+  id          String   @id @default(uuid())
+  topic       String
+  region      String
+  country     String
+  category    String
+  score       Float
+  growthRate  Float
+  source      String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  scripts     Script[]
+
+  @@index([category])
+  @@index([region])
+  @@index([country])
+  @@index([score])
+}
+
+model Script {
+  id           String   @id @default(uuid())
+  trendId      String
+  title        String
+  hook         String
+  body         String
+  cta          String
+  language     String   @default("en")
+  durationHint Int      @default(45)
+  qualityScore Float    @default(0)
+  factScore    Float    @default(0)
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  trend        Trend?   @relation(fields: [trendId], references: [id], onDelete: SetNull)
+  videos       Video[]
+
+  @@index([language])
+  @@index([qualityScore])
+  @@index([factScore])
+}
+
+model Video {
+  id               String          @id @default(uuid())
+  creatorId        String?
+  avatarId         String?
+  scriptId         String?
+  title            String
+  category         String
+  videoUrl         String?
+  thumbnailUrl     String?
+  durationSeconds  Int?
+  status           VideoStatus     @default(DRAFT)
+  region           String?
+  country          String
+  language         String          @default("en")
+  isSeedContent    Boolean         @default(true)
+  publishedAt      DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  creator          Creator?        @relation(fields: [creatorId], references: [id], onDelete: SetNull)
+  avatar           Avatar?         @relation(fields: [avatarId], references: [id], onDelete: SetNull)
+  script           Script?         @relation(fields: [scriptId], references: [id], onDelete: SetNull)
+  score            VideoScore?
+  moderationLogs   ModerationLog[]
+  feedEvents       FeedEvent[]
+
+  @@index([status])
+  @@index([category])
+  @@index([region])
+  @@index([country])
+  @@index([language])
+  @@index([isSeedContent])
+  @@index([publishedAt])
+}
+
+model VideoScore {
+  id                String   @id @default(uuid())
+  videoId           String   @unique
+  viralProbability  Float
+  engagementScore   Float
+  watchTimeScore    Float
+  shareScore        Float
+  commentScore      Float
+  qualityScore      Float
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  video             Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([viralProbability])
+  @@index([engagementScore])
+  @@index([qualityScore])
+}
+
+model ModerationLog {
+  id         String            @id @default(uuid())
+  videoId    String
+  action     ModerationAction
+  reason     String?
+  score      Float
+  metadata   Json?
+  reviewedBy String?
+  createdAt  DateTime          @default(now())
+
+  video      Video             @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([action])
+  @@index([score])
+  @@index([createdAt])
+}
+
+model FeedEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  videoId   String
+  action    String
+  watchMs   Int?
+  region    String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([videoId])
+  @@index([action])
+  @@index([createdAt])
+}
+
+model AdCampaign {
+  id         String            @id @default(uuid())
+  advertiser String
+  title      String
+  budget     Float
+  spent      Float            @default(0)
+  targeting  Json
+  status     AdCampaignStatus @default(DRAFT)
+  startsAt   DateTime?
+  endsAt     DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  @@index([status])
+  @@index([startsAt])
+  @@index([endsAt])
+}

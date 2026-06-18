@@ -1,0 +1,17 @@
+node_modules
+dist
+.env
+.env.local
+.DS_Store
+coverage
+.prisma
+*.log
+apps/mobile_flutter/build
+apps/mobile_flutter/.dart_tool
+apps/mobile_flutter/.packages
+apps/mobile_flutter/pubspec.lock
+apps/admin_web/.next
+apps/admin_web/node_modules
+apps/admin_web/out
+.idea
+.vscode
