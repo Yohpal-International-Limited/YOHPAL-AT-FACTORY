@@ -45,15 +45,19 @@ class _VideoCardState extends State<VideoCard> {
 
   void _initVideo() {
     if (_controller != null) return;
-    _controller = VideoPlayerController.networkUrl(
-      Uri.parse(widget.video.videoUrl ?? 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4'),
-    );
+    final uri = widget.video.videoUrl != null && widget.video.videoUrl!.isNotEmpty
+        ? Uri.parse(widget.video.videoUrl!)
+        : null;
+    if (uri == null) return;
+    _controller = VideoPlayerController.networkUrl(uri);
     _controller!.initialize().then((_) {
       if (mounted) {
         setState(() => _isInitialized = true);
         _controller!.play();
         _isPlaying = true;
       }
+    }).catchError((_) {
+      _disposeVideo();
     });
   }
 
@@ -97,9 +101,7 @@ class _VideoCardState extends State<VideoCard> {
                 ),
               )
             else
-              const Center(
-                child: CircularProgressIndicator(color: Colors.white),
-              ),
+              Container(color: Colors.black26),
 
             // Gradient Overlay (for better text visibility)
             Container(
