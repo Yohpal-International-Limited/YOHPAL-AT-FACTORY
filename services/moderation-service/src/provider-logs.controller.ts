@@ -1,6 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { PrismaService } from '../../../libs/database/prisma.service';
 import { ok } from '../../../libs/common/http-response';
+import { OptionalTakePipe } from '../../../libs/common/query-validation.pipe';
 
 @Controller()
 export class ProviderLogsController {
@@ -11,7 +12,7 @@ export class ProviderLogsController {
     @Query('jobType') jobType?: string,
     @Query('status') status?: string,
     @Query('providerName') providerName?: string,
-    @Query('take') take?: string,
+    @Query('take', OptionalTakePipe) take?: number,
   ) {
     const where: Record<string, unknown> = {};
     if (jobType) where.jobType = jobType;
@@ -20,7 +21,7 @@ export class ProviderLogsController {
     const result = await this.prisma.providerJobLog.findMany({
       where,
       orderBy: { startedAt: 'desc' },
-      take: take ? Number(take) : 50,
+      take: take ?? 50,
       include: { video: { select: { id: true, title: true, category: true, status: true } } },
     });
     return ok(result, { count: result.length });
@@ -42,7 +43,7 @@ export class ProviderLogsController {
   async listScriptProviderLogs(
     @Query('providerName') providerName?: string,
     @Query('status') status?: string,
-    @Query('take') take?: string,
+    @Query('take', OptionalTakePipe) take?: number,
   ) {
     const where: Record<string, unknown> = {};
     if (providerName) where.providerName = providerName;
@@ -50,7 +51,7 @@ export class ProviderLogsController {
     const result = await this.prisma.scriptProviderLog.findMany({
       where,
       orderBy: { startedAt: 'desc' },
-      take: take ? Number(take) : 50,
+      take: take ?? 50,
       include: {
         script: { select: { id: true, title: true, hook: true, qualityScore: true, factScore: true } },
         trend: { select: { id: true, topic: true, category: true, region: true, country: true } },

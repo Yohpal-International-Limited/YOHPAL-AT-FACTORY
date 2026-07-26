@@ -1,4 +1,5 @@
 import * as dotenv from 'dotenv';
+import { assertProductionProviders } from './production-safety';
 
 dotenv.config();
 
@@ -46,10 +47,14 @@ export const env = {
   objectStorageBucket: optional('OBJECT_STORAGE_BUCKET', 'yohpal-live-videos'),
 
   aiGatewayUrl: optional('AI_GATEWAY_URL', 'http://localhost:8080'),
+  llmProvider: optional('LLM_PROVIDER', 'mock'),
   ttsProvider: optional('TTS_PROVIDER', 'mock'),
   avatarProvider: optional('AVATAR_PROVIDER', 'mock'),
   videoRenderProvider: optional('VIDEO_RENDER_PROVIDER', 'mock'),
+  moderationProvider: optional('MODERATION_PROVIDER', 'mock'),
 
   moderationThreshold: optionalNumber('MODERATION_THRESHOLD', 0.78),
   viralPublishThreshold: optionalNumber('VIRAL_PUBLISH_THRESHOLD', 0.75),
 };
+
+assertProductionProviders(env);

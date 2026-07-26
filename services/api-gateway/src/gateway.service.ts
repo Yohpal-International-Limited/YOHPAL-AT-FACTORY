@@ -45,7 +45,7 @@ export class GatewayService {
     return this.post(`${this.trendServiceUrl}/trends/discover-seed`, {});
   }
 
-  async listTrends(query: Record<string, string | undefined>) {
+  async listTrends(query: Record<string, string | number | undefined>) {
     return this.get(`${this.trendServiceUrl}/trends`, query);
   }
 
@@ -54,11 +54,11 @@ export class GatewayService {
     return this.post(`${this.scriptServiceUrl}/scripts/generate`, body);
   }
 
-  async generatePendingScripts(take?: string) {
+  async generatePendingScripts(take?: number) {
     return this.post(`${this.scriptServiceUrl}/scripts/generate-pending`, {}, { params: { take } });
   }
 
-  async listScripts(query: Record<string, string | undefined>) {
+  async listScripts(query: Record<string, string | number | undefined>) {
     return this.get(`${this.scriptServiceUrl}/scripts`, query);
   }
 
@@ -67,7 +67,7 @@ export class GatewayService {
     return this.post(`${this.renderServiceUrl}/render/jobs`, body);
   }
 
-  async createPendingVideoJobs(take?: string) {
+  async createPendingVideoJobs(take?: number) {
     return this.post(`${this.renderServiceUrl}/render/jobs/create-pending`, {}, { params: { take } });
   }
 
@@ -75,11 +75,11 @@ export class GatewayService {
     return this.post(`${this.renderServiceUrl}/render/videos/render`, body);
   }
 
-  async renderPendingVideos(take?: string) {
+  async renderPendingVideos(take?: number) {
     return this.post(`${this.renderServiceUrl}/render/videos/render-pending`, {}, { params: { take } });
   }
 
-  async listVideos(query: Record<string, string | undefined>) {
+  async listVideos(query: Record<string, string | number | undefined>) {
     return this.get(`${this.renderServiceUrl}/render/videos`, query);
   }
 
@@ -88,7 +88,7 @@ export class GatewayService {
     return this.post(`${this.moderationServiceUrl}/moderation/videos/moderate`, body);
   }
 
-  async moderatePendingVideos(take?: string) {
+  async moderatePendingVideos(take?: number) {
     return this.post(`${this.moderationServiceUrl}/moderation/videos/moderate-pending`, {}, { params: { take } });
   }
 
@@ -104,16 +104,16 @@ export class GatewayService {
     return this.post(`${this.moderationServiceUrl}/moderation/videos/${videoId}/publish`, {});
   }
 
-  async publishAllApproved(take?: string) {
+  async publishAllApproved(take?: number) {
     return this.post(`${this.moderationServiceUrl}/moderation/videos/publish-approved`, {}, { params: { take } });
   }
 
-  async listModerationQueue(query: Record<string, string | undefined>) {
+  async listModerationQueue(query: Record<string, string | number | undefined>) {
     return this.get(`${this.moderationServiceUrl}/moderation/queue`, query);
   }
 
   // RECOMMENDATION
-  async getSeedFeed(query: Record<string, string | undefined>) {
+  async getSeedFeed(query: Record<string, string | number | undefined>) {
     return this.get(`${this.recommendationServiceUrl}/feed/seed`, query);
   }
 
@@ -122,7 +122,7 @@ export class GatewayService {
   }
 
   // FULL PIPELINE (One command to rule them all!)
-  async runSeedPipeline(take = '10') {
+  async runSeedPipeline(take = 10) {
     const trends = await this.discoverSeedTrends();
     const scripts = await this.generatePendingScripts(take);
     const jobs = await this.createPendingVideoJobs(take);
@@ -136,7 +136,7 @@ export class GatewayService {
     };
   }
 
-  async listProviderJobs(query: Record<string, string | undefined>) {
+  async listProviderJobs(query: Record<string, string | number | undefined>) {
     return this.get(`${this.moderationServiceUrl}/provider-jobs`, query);
   }
 
@@ -144,7 +144,7 @@ export class GatewayService {
     return this.get(`${this.moderationServiceUrl}/provider-jobs/summary`);
   }
 
-  async listScriptProviderLogs(query: Record<string, string | undefined>) {
+  async listScriptProviderLogs(query: Record<string, string | number | undefined>) {
     return this.get(`${this.moderationServiceUrl}/script-provider-logs`, query);
   }
 

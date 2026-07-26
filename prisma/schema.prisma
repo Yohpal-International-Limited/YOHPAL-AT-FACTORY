@@ -112,7 +112,7 @@ model Trend {
 
 model Script {
   id           String   @id @default(uuid())
-  trendId      String
+  trendId      String?
   title        String
   hook         String
   body         String
@@ -259,7 +259,7 @@ enum ProviderJobStatus {
 }
 
 model ProviderJobLog {
-  id              String            @id
+  id              String            @id @default(uuid())
   videoId         String?
   jobType         ProviderJobType
   providerName    String
@@ -281,7 +281,7 @@ model ProviderJobLog {
 }
 
 model ScriptProviderLog {
-  id              String    @id
+  id              String    @id @default(uuid())
   scriptId        String?
   trendId         String?
   providerName    String

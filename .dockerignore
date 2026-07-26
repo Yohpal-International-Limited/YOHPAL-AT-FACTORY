@@ -1,0 +1,10 @@
+.git
+.github
+apps
+backup_before_import.sql
+dist
+docs
+node_modules
+outputs
+tests
+work

@@ -1,4 +1,4 @@
-import { PrismaService } from './prisma.service';
+import { PrismaService } from '../database/prisma.service';
 
 export type ScriptProviderStatus = 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'FALLBACK_USED';
 

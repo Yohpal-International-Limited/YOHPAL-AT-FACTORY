@@ -19,7 +19,9 @@
     "moduleResolution": "node"
   },
   "include": [
-    "backend/**/*.ts",
+    "services/**/*.ts",
+    "backend/shared/**/*.ts",
+    "libs/**/*.ts",
     "contracts/**/*.ts",
     "ai/**/*.ts",
     "prisma/**/*.ts"

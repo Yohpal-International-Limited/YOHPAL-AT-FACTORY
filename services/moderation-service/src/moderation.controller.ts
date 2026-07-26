@@ -1,23 +1,25 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { ModerationAction } from '@prisma/client';
 import { ModerationService } from './moderation.service';
-import { ModerateVideoRequest } from '../../../contracts/api-contracts';
+import { ModerateVideoRequest, ModerateVideoRequestSchema } from '../../../contracts/api-contracts';
 import { ok } from '../../../libs/common/http-response';
+import { ZodValidationPipe } from '../../../libs/common/zod-validation.pipe';
+import { OptionalTakePipe } from '../../../libs/common/query-validation.pipe';
 
 @Controller('moderation')
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService) {}
 
   @Post('videos/moderate')
-  async moderateVideo(@Body() body: ModerateVideoRequest) {
+  async moderateVideo(@Body(new ZodValidationPipe(ModerateVideoRequestSchema)) body: ModerateVideoRequest) {
     const result = await this.moderationService.moderateVideo(body);
     return ok(result, { message: 'Video moderation completed' });
   }
 
   @Post('videos/moderate-pending')
-  async moderatePendingVideos(@Query('take') take?: string) {
+  async moderatePendingVideos(@Query('take', OptionalTakePipe) take?: number) {
     const result = await this.moderationService.moderatePendingVideos(
-      take ? Number(take) : 20
+      take ?? 20
     );
     return ok(result, { count: result.length });
   }
@@ -41,9 +43,9 @@ export class ModerationController {
   }
 
   @Post('videos/publish-approved')
-  async publishAllApproved(@Query('take') take?: string) {
+  async publishAllApproved(@Query('take', OptionalTakePipe) take?: number) {
     const result = await this.moderationService.publishAllApproved(
-      take ? Number(take) : 20
+      take ?? 20
     );
     return ok(result, { count: result.length });
   }
@@ -51,11 +53,11 @@ export class ModerationController {
   @Get('queue')
   async listModerationQueue(
     @Query('action') action?: ModerationAction,
-    @Query('take') take?: string
+    @Query('take', OptionalTakePipe) take?: number
   ) {
     const result = await this.moderationService.listModerationQueue({
       action,
-      take: take ? Number(take) : undefined,
+      take,
     });
     return ok(result, { count: result.length });
   }

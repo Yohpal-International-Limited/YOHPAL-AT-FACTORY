@@ -1,14 +1,16 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { TrendService } from './trend.service';
-import { CreateTrendRequest } from '../../../contracts/api-contracts';
+import { CreateTrendRequest, CreateTrendRequestSchema } from '../../../contracts/api-contracts';
 import { ok } from '../../../libs/common/http-response';
+import { ZodValidationPipe } from '../../../libs/common/zod-validation.pipe';
+import { OptionalTakePipe } from '../../../libs/common/query-validation.pipe';
 
 @Controller('trends')
 export class TrendController {
   constructor(private readonly trendService: TrendService) {}
 
   @Post()
-  async createTrend(@Body() body: CreateTrendRequest) {
+  async createTrend(@Body(new ZodValidationPipe(CreateTrendRequestSchema)) body: CreateTrendRequest) {
     const trend = await this.trendService.createTrend(body);
     return ok(trend);
   }
@@ -24,13 +26,13 @@ export class TrendController {
     @Query('category') category?: string,
     @Query('region') region?: string,
     @Query('country') country?: string,
-    @Query('take') take?: string
+    @Query('take', OptionalTakePipe) take?: number
   ) {
     const trends = await this.trendService.listTrends({
       category,
       region,
       country,
-      take: take ? Number(take) : undefined,
+      take,
     });
     return ok(trends, { count: trends.length });
   }
