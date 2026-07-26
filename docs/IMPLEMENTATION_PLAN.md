@@ -43,6 +43,12 @@ calls without valid identity fail; security review has no critical/high finding.
 
 ## Phase 2 - Real content generation
 
+Current increment: licensed configurable trend connectors, provenance retention,
+authenticated YohPal Brain HTTP adapters, evidence-required factual categories,
+and fail-closed remote asset validation are implemented. Provider-specific job
+polling, checksums/codecs/caption inspection, citation-to-claim entailment, and
+production credentials remain deployment work.
+
 - Build scheduled trend connectors behind a common source interface, starting
   with two licensed/official sources.
 - Normalize, deduplicate, score, expire, and retain source provenance.

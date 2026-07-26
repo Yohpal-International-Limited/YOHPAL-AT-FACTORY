@@ -1,5 +1,6 @@
 import { buildSeedVideoScriptPrompt } from '../prompts/script-prompts';
 import { ContentStrategyOutput } from './content-strategy.agent';
+import { createLlmProvider } from '../providers/provider-factory';
 
 export type ScriptWriterInput = {
   topic: string;
@@ -31,7 +32,23 @@ export class ScriptWriterAgent {
       language: input.language || 'en',
       durationSeconds: input.strategy.durationSeconds,
     });
-    void prompt;
+
+    if (process.env.LLM_PROVIDER === 'yohpal_brain') {
+      const generated = await createLlmProvider().generateScript(prompt, {
+        topic: input.topic,
+        category: input.category,
+        region: input.region,
+        country: input.country,
+        language: input.language || 'en',
+      });
+      return {
+        ...generated,
+        fullScript: `${generated.hook}\n\n${generated.body}\n\n${generated.cta}`,
+        language: input.language || 'en',
+        durationHint: input.strategy.durationSeconds,
+        qualityScore: this.estimateQualityScore(input.category),
+      };
+    }
 
     const title = this.buildTitle(input.topic);
     const hook = this.buildHook(input.topic, input.category, input.region);

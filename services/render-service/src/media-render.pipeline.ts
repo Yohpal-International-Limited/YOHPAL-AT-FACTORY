@@ -1,3 +1,10 @@
+import {
+  createAvatarProvider,
+  createTtsProvider,
+  createVideoCompositorProvider,
+} from '../../../ai/providers/provider-factory';
+import { verifyRemoteAsset } from '../../../libs/media/asset-verifier';
+
 export type MediaRenderPipelineInput = {
   videoId: string;
   title: string;
@@ -15,18 +22,52 @@ export type MediaRenderPipelineOutput = {
   videoUrl: string;
   thumbnailUrl: string;
   durationSeconds: number;
+  verification: Record<string, unknown>;
 };
 
 export class MediaRenderPipeline {
   async render(input: MediaRenderPipelineInput): Promise<MediaRenderPipelineOutput> {
-    // Mock implementation — just return fake URLs
-    const baseUrl = process.env.CDN_BASE_URL || 'https://cdn.yohpal.com';
+    const tts = await createTtsProvider().synthesize(input.scriptText, {
+      language: input.language,
+      voice: input.voiceId,
+    });
+    const avatar = await createAvatarProvider().generateAvatar({
+      script: input.scriptText,
+      style: input.avatarCategory,
+    });
+    const composed = await createVideoCompositorProvider().compose({
+      audioUrl: tts.audioUrl,
+      avatarUrl: avatar.avatarUrl,
+      visuals: [],
+      style: input.backgroundStyle,
+    });
+
+    if (process.env.NODE_ENV !== 'production' && process.env.VERIFY_MOCK_ASSETS !== 'true') {
+      return {
+        audioUrl: tts.audioUrl,
+        avatarVideoUrl: avatar.avatarUrl,
+        videoUrl: composed.videoUrl,
+        thumbnailUrl: composed.thumbnailUrl || '',
+        durationSeconds: Math.ceil(composed.durationMs / 1000),
+        verification: { mode: 'development-bypass' },
+      };
+    }
+
+    const [audioAsset, avatarAsset, videoAsset] = await Promise.all([
+      verifyRemoteAsset(tts.audioUrl, 'audio'),
+      verifyRemoteAsset(avatar.avatarUrl, 'image'),
+      verifyRemoteAsset(composed.videoUrl, 'video'),
+    ]);
+    const thumbnailAsset = composed.thumbnailUrl
+      ? await verifyRemoteAsset(composed.thumbnailUrl, 'image')
+      : undefined;
     return {
-      audioUrl: `${baseUrl}/audio/${input.videoId}.mp3`,
-      avatarVideoUrl: `${baseUrl}/avatar/${input.videoId}.mp4`,
-      videoUrl: `${baseUrl}/videos/${input.videoId}.mp4`,
-      thumbnailUrl: `${baseUrl}/thumbnails/${input.videoId}.jpg`,
-      durationSeconds: 45,
+      audioUrl: audioAsset.url,
+      avatarVideoUrl: avatarAsset.url,
+      videoUrl: videoAsset.url,
+      thumbnailUrl: thumbnailAsset?.url || '',
+      durationSeconds: Math.ceil(composed.durationMs / 1000),
+      verification: { audioAsset, avatarAsset, videoAsset, thumbnailAsset },
     };
   }
 }

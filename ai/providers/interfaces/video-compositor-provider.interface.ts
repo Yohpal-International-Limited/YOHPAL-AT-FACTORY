@@ -6,6 +6,7 @@ export interface VideoCompositorProvider {
     style?: string;
   }): Promise<{
     videoUrl: string;
+    thumbnailUrl?: string;
     durationMs: number;
     metadata: Record<string, unknown>;
   }>;

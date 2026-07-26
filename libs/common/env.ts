@@ -47,6 +47,7 @@ export const env = {
   objectStorageBucket: optional('OBJECT_STORAGE_BUCKET', 'yohpal-live-videos'),
 
   aiGatewayUrl: optional('AI_GATEWAY_URL', 'http://localhost:8080'),
+  aiProviderApiKey: optional('AI_PROVIDER_API_KEY', ''),
   jwtSecret: optional('JWT_SECRET', 'development-jwt-secret'),
   jwtJwksUri: optional('JWT_JWKS_URI', ''),
   jwtIssuer: optional('JWT_ISSUER', 'yohpal-live'),

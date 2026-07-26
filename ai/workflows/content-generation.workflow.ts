@@ -3,6 +3,7 @@ import { ScriptWriterAgent, ScriptWriterOutput } from '../agents/script-writer.a
 import { FactCheckAgent, FactCheckOutput } from '../agents/fact-check.agent';
 import { ViralPredictionAgent, ViralPredictionOutput } from '../agents/viral-prediction.agent';
 import { AvatarDirectorAgent, AvatarDirectionOutput } from '../agents/avatar-director.agent';
+import { EvidenceSource } from '../agents/fact-check.agent';
 
 export type ContentGenerationInput = {
   topic: string;
@@ -11,6 +12,7 @@ export type ContentGenerationInput = {
   country?: string | null;
   language?: string;
   audience?: string;
+  evidence?: EvidenceSource[];
 };
 
 export type ContentGenerationOutput = {
@@ -53,6 +55,7 @@ export class ContentGenerationWorkflow {
       body: script.body,
       cta: script.cta,
       category: input.category,
+      evidence: input.evidence,
     });
 
     const viralScore = await this.viralPredictionAgent.score({

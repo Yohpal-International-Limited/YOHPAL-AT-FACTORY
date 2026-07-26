@@ -1,12 +1,10 @@
 import { VideoCompositorProvider } from '../interfaces/video-compositor-provider.interface';
-import { env } from '../../../libs/common/env';
+import { callYohPalBrain } from './client';
 
 export class YohPalBrainVideoCompositorProvider implements VideoCompositorProvider {
-  async compose(_input: { audioUrl: string; avatarUrl?: string; visuals: string[]; style?: string }) {
-    return {
-      videoUrl: `${env.cdnBaseUrl}/brain/video.mp4`,
-      durationMs: 10000,
-      metadata: { provider: 'yohpal_brain', engine: 'yohpal-compositor-v1' },
-    };
+  async compose(input: { audioUrl: string; avatarUrl?: string; visuals: string[]; style?: string }) {
+    return callYohPalBrain<{ videoUrl: string; durationMs: number; metadata: Record<string, unknown> }>(
+      '/v1/videos/compose', input
+    );
   }
 }

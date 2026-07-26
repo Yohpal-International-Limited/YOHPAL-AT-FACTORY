@@ -45,6 +45,10 @@ export class GatewayService {
     return this.post(`${this.trendServiceUrl}/trends/discover-seed`, {});
   }
 
+  async discoverLicensedTrends() {
+    return this.post(`${this.trendServiceUrl}/trends/discover-licensed`, {});
+  }
+
   async listTrends(query: Record<string, string | number | undefined>) {
     return this.get(`${this.trendServiceUrl}/trends`, query);
   }

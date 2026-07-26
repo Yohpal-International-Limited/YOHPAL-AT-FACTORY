@@ -5,18 +5,25 @@ export type ProviderConfig = {
   avatarProvider: string;
   videoRenderProvider: string;
   moderationProvider: string;
+  aiProviderApiKey?: string;
 };
 
 export function assertProductionProviders(config: ProviderConfig): void {
   if (config.nodeEnv !== 'production') return;
 
   const mockProviders = Object.entries(config)
-    .filter(([name, value]) => name !== 'nodeEnv' && value.toLowerCase() === 'mock')
+    .filter(([name, value]) => name.endsWith('Provider') && value === 'mock')
     .map(([name]) => name);
   if (mockProviders.length > 0) {
     throw new Error(
       `Production cannot start with mock providers: ${mockProviders.join(', ')}`
     );
+  }
+  const usesYohPalBrain = Object.entries(config).some(
+    ([name, value]) => name.endsWith('Provider') && value === 'yohpal_brain'
+  );
+  if (usesYohPalBrain && !config.aiProviderApiKey) {
+    throw new Error('AI_PROVIDER_API_KEY is required for yohpal_brain providers');
   }
 }
 

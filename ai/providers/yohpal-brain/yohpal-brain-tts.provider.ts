@@ -1,12 +1,10 @@
 import { TtsProvider } from '../interfaces/tts-provider.interface';
-import { env } from '../../../libs/common/env';
+import { callYohPalBrain } from './client';
 
 export class YohPalBrainTtsProvider implements TtsProvider {
-  async synthesize(_text: string, _options?: { language?: string; voice?: string }) {
-    return {
-      audioUrl: `${env.cdnBaseUrl}/brain/audio.mp3`,
-      durationMs: 5000,
-      metadata: { provider: 'yohpal_brain', engine: 'yohpal-tts-v1' },
-    };
+  async synthesize(text: string, options?: { language?: string; voice?: string }) {
+    return callYohPalBrain<{ audioUrl: string; durationMs: number; metadata: Record<string, unknown> }>(
+      '/v1/tts', { text, ...options }
+    );
   }
 }

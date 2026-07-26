@@ -3,6 +3,7 @@ import { PrismaService } from '../../../libs/database/prisma.service';
 import { publishEvent } from '../../../libs/common/kafka';
 import { KafkaTopics } from '../../../contracts/kafka-events';
 import { CreateTrendRequest } from '../../../contracts/api-contracts';
+import { fetchLicensedTrends, parseLicensedTrendSources } from './trend-source.connector';
 
 @Injectable()
 export class TrendService {
@@ -60,6 +61,21 @@ export class TrendService {
       }
     }
     return created;
+  }
+
+  async discoverLicensedTrends() {
+    const raw = process.env.TREND_SOURCES_JSON;
+    if (!raw) throw new Error('TREND_SOURCES_JSON is required');
+    const discovered = [];
+    for (const source of parseLicensedTrendSources(raw)) {
+      for (const trend of await fetchLicensedTrends(source)) {
+        const existing = await this.prisma.trend.findFirst({
+          where: { topic: trend.topic, source: trend.source },
+        });
+        if (!existing) discovered.push(await this.createTrend(trend));
+      }
+    }
+    return discovered;
   }
 
   async listTrends(params: {

@@ -4,13 +4,17 @@ export type FactCheckInput = {
   body: string;
   cta?: string;
   category: string;
+  evidence?: EvidenceSource[];
 };
+
+export type EvidenceSource = { title: string; url: string; retrievedAt: string };
 
 export type FactCheckOutput = {
   factScore: number;
   unsafeClaims: string[];
   correctionNotes: string[];
   requiresHumanReview: boolean;
+  citations: EvidenceSource[];
 };
 
 export class FactCheckAgent {
@@ -36,9 +40,25 @@ export class FactCheckAgent {
       'crime', 'children', 'breaking_news', 'legal', 'medical'
     ];
 
+    const citations = (input.evidence || []).filter((source) => {
+      try {
+        return new URL(source.url).protocol === 'https:' && !Number.isNaN(Date.parse(source.retrievedAt));
+      } catch {
+        return false;
+      }
+    });
+    const evidenceRequired = [
+      'news', 'breaking_news', 'health', 'finance', 'politics',
+      'legal', 'medical', 'education', 'technology',
+    ].includes(input.category.toLowerCase());
+
     const requiresHumanReview = sensitiveCategories.includes(
       input.category.toLowerCase()
-    );
+    ) || (evidenceRequired && citations.length === 0);
+
+    if (evidenceRequired && citations.length === 0) {
+      correctionNotes.push('Add at least one valid HTTPS evidence citation');
+    }
 
     const factScore =
       unsafeClaims.length === 0 && !requiresHumanReview ? 0.92 :
@@ -49,6 +69,7 @@ export class FactCheckAgent {
       unsafeClaims,
       correctionNotes,
       requiresHumanReview,
+      citations,
     };
   }
 }

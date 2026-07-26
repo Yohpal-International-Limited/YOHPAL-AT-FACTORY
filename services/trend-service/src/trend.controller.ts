@@ -21,6 +21,12 @@ export class TrendController {
     return ok(trends, { count: trends.length });
   }
 
+  @Post('discover-licensed')
+  async discoverLicensedTrends() {
+    const trends = await this.trendService.discoverLicensedTrends();
+    return ok(trends, { count: trends.length });
+  }
+
   @Get()
   async listTrends(
     @Query('category') category?: string,

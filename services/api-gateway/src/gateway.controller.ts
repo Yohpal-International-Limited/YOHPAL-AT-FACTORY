@@ -50,6 +50,13 @@ export class GatewayController {
     return this.gatewayService.discoverSeedTrends();
   }
 
+  @Post('trends/discover-licensed')
+  @Roles('operator', 'admin')
+  @Audited('trend.discover-licensed', 'trend')
+  async discoverLicensedTrends() {
+    return this.gatewayService.discoverLicensedTrends();
+  }
+
   @Get('trends')
   async listTrends(
     @Query('category') category?: string,

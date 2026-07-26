@@ -26,6 +26,7 @@ export class ScriptService {
       region: trend.region,
       country: trend.country,
       language: 'en',
+      evidence: this.extractEvidence(trend.metadata),
     });
 
     const script = await this.prisma.script.create({
@@ -62,6 +63,18 @@ export class ScriptService {
     );
 
     return { script, workflow: result };
+  }
+
+  private extractEvidence(metadata: unknown) {
+    if (!metadata || typeof metadata !== 'object' || !('evidence' in metadata)) return [];
+    const evidence = (metadata as { evidence?: unknown }).evidence;
+    if (!Array.isArray(evidence)) return [];
+    return evidence.filter((item): item is { title: string; url: string; retrievedAt: string } =>
+      Boolean(item && typeof item === 'object' &&
+        typeof (item as any).title === 'string' &&
+        typeof (item as any).url === 'string' &&
+        typeof (item as any).retrievedAt === 'string')
+    );
   }
 
   async generateForAllPendingTrends(take = 20) {

@@ -68,3 +68,17 @@ Administrative mutations are stored in the append-only `AdminAuditLog` table.
 Records are serialized and hash-linked, while database triggers reject updates
 and deletes. Audit history is available only to administrators at
 `GET /admin/audit-logs`.
+
+## Phase 2 provider configuration
+
+Configure licensed trend feeds with `TREND_SOURCES_JSON`. Every source requires
+`name`, `endpoint`, `licenseId`, `category`, `region`, and `country`; `apiKey` is
+optional. In production, source endpoints must use HTTPS and stored trends retain
+the license identifier, source URL, publication time, and retrieval time.
+
+Real AI/media generation uses `LLM_PROVIDER`, `TTS_PROVIDER`, `AVATAR_PROVIDER`,
+and `VIDEO_RENDER_PROVIDER` set to `yohpal_brain`, together with
+`AI_GATEWAY_URL` and `AI_PROVIDER_API_KEY`. The adapters call authenticated
+script, TTS, avatar, and composition endpoints. Before production output can
+enter moderation, generated assets must be HTTPS, non-mock, reachable, have the
+expected media content type, and report a positive content length.

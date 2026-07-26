@@ -159,6 +159,7 @@ export class RenderService {
         renderProvider: env.videoRenderProvider,
         ttsProvider: env.ttsProvider,
         avatarProvider: env.avatarProvider,
+        verification: rendered.verification,
         fallbackUsed: false,
       },
     };

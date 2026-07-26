@@ -14,6 +14,8 @@ import jwt from 'jsonwebtoken';
 import { verifyAccessToken } from '../libs/security/auth';
 import { configuredServiceToken, serviceTokensMatch } from '../libs/security/service-identity.guard';
 import { calculateAuditHash } from '../libs/audit/admin-audit.service';
+import { verifyRemoteAsset } from '../libs/media/asset-verifier';
+import { parseLicensedTrendSources } from '../services/trend-service/src/trend-source.connector';
 
 test('ranking clamps untrusted score inputs to the zero-to-one range', () => {
   const score = calculateRankScore({
@@ -187,4 +189,40 @@ test('audit hashes are deterministic and reveal record tampering', () => {
   const hash = calculateAuditHash(record);
   assert.equal(hash, calculateAuditHash(record));
   assert.notEqual(hash, calculateAuditHash({ ...record, action: 'video.reject' }));
+});
+
+test('licensed trend source configuration requires provenance fields', () => {
+  assert.equal(parseLicensedTrendSources(JSON.stringify([{
+    name: 'licensed-news',
+    endpoint: 'https://provider.example/trends',
+    licenseId: 'contract-2026-01',
+    category: 'news',
+    region: 'Africa',
+    country: 'Kenya',
+  }])).length, 1);
+  assert.throws(() => parseLicensedTrendSources(JSON.stringify([{
+    name: 'unlicensed-news',
+    endpoint: 'https://provider.example/trends',
+    category: 'news',
+    region: 'Africa',
+    country: 'Kenya',
+  }])));
+});
+
+test('factual categories require valid evidence citations', async () => {
+  const withoutEvidence = await new FactCheckAgent().check({
+    title: 'Technology update', hook: 'Update', body: 'A factual claim.', category: 'technology',
+  });
+  assert.equal(withoutEvidence.requiresHumanReview, true);
+  const withEvidence = await new FactCheckAgent().check({
+    title: 'Technology update', hook: 'Update', body: 'A factual claim.', category: 'technology',
+    evidence: [{ title: 'Official source', url: 'https://example.org/source', retrievedAt: new Date().toISOString() }],
+  });
+  assert.equal(withEvidence.requiresHumanReview, false);
+  assert.equal(withEvidence.citations.length, 1);
+});
+
+test('asset verification rejects insecure and mock URLs before network access', async () => {
+  await assert.rejects(() => verifyRemoteAsset('http://cdn.example/video.mp4', 'video'), /HTTPS/);
+  await assert.rejects(() => verifyRemoteAsset('https://cdn.example/mock/video.mp4', 'video'), /Mock assets/);
 });
