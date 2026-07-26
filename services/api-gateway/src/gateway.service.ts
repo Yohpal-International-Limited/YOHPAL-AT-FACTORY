@@ -153,12 +153,21 @@ export class GatewayService {
   }
 
   private async get(url: string, params?: Record<string, unknown>) {
-    const response = await axios.get(url, { params });
+    const response = await axios.get(url, { params, headers: this.serviceHeaders() });
     return response.data;
   }
 
   private async post(url: string, body: unknown, config?: AxiosRequestConfig) {
-    const response = await axios.post(url, body, config);
+    const response = await axios.post(url, body, {
+      ...config,
+      headers: { ...config?.headers, ...this.serviceHeaders() },
+    });
     return response.data;
+  }
+
+  private serviceHeaders() {
+    return {
+      'x-yohpal-service-token': process.env.SERVICE_AUTH_TOKEN || 'development-service-token',
+    };
   }
 }

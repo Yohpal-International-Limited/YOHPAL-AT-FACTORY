@@ -44,3 +44,27 @@ Build a service image with:
 ```bash
 docker build --build-arg SERVICE=api-gateway -t yohpal-content-factory .
 ```
+
+## Security configuration
+
+All gateway routes except `GET /health` require an HS256 bearer JWT. Tokens
+must contain a subject, the configured issuer and audience, and at least one of
+the roles `viewer`, `operator`, `moderator`, or `admin`.
+
+Production requires distinct `JWT_SECRET` and `SERVICE_AUTH_TOKEN` values of at
+least 32 bytes. Configure `JWT_ISSUER` and `JWT_AUDIENCE` for the issuing system.
+For OIDC deployments, set an HTTPS `JWT_JWKS_URI`; the gateway then accepts only
+RS256 tokens, caches signing keys, rate-limits JWKS retrieval, and resolves new
+`kid` values during key rotation. HS256 is retained for controlled local or
+legacy deployments when `JWT_JWKS_URI` is unset.
+Internal services reject requests without the shared service credential; only
+the gateway should be exposed publicly.
+
+Set `CORS_ALLOWED_ORIGINS` to a comma-separated allowlist. `REQUEST_BODY_LIMIT`,
+`RATE_LIMIT_WINDOW_MS`, and `RATE_LIMIT_MAX` control the gateway's body and
+traffic limits. Production rejects wildcard CORS configuration.
+
+Administrative mutations are stored in the append-only `AdminAuditLog` table.
+Records are serialized and hash-linked, while database triggers reject updates
+and deletes. Audit history is available only to administrators at
+`GET /admin/audit-logs`.

@@ -302,3 +302,21 @@ model ScriptProviderLog {
   @@index([startedAt])
   @@index([scriptId])
 }
+
+model AdminAuditLog {
+  id           String   @id @default(uuid())
+  actorId      String
+  actorRoles   String[]
+  action       String
+  targetType   String
+  targetId     String?
+  requestId    String   @unique
+  previousHash String?
+  hash         String   @unique
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}

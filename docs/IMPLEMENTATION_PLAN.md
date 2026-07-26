@@ -24,6 +24,12 @@ Acceptance: a clean checkout passes `npm ci`, `npm run typecheck`, `npm test`,
 
 ## Phase 1 - Security and governance release gate
 
+Implemented: HS256 and OIDC/JWKS JWT verification with rotation, route RBAC,
+shared service identity, production secret checks, append-only hash-linked
+administrative audit logs, restricted CORS, request limits, rate limiting,
+secure headers, and HTTP authorization tests. Secret-manager integration and a
+complete route-by-role authorization matrix remain.
+
 - Add OIDC/JWT validation at the gateway.
 - Define viewer, moderator, operator, and executive roles; default deny.
 - Add workload identity for internal calls and rotate secrets through a secret

@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { assertProductionProviders } from './production-safety';
+import { assertProductionProviders, assertProductionSecurity } from './production-safety';
 
 dotenv.config();
 
@@ -47,6 +47,16 @@ export const env = {
   objectStorageBucket: optional('OBJECT_STORAGE_BUCKET', 'yohpal-live-videos'),
 
   aiGatewayUrl: optional('AI_GATEWAY_URL', 'http://localhost:8080'),
+  jwtSecret: optional('JWT_SECRET', 'development-jwt-secret'),
+  jwtJwksUri: optional('JWT_JWKS_URI', ''),
+  jwtIssuer: optional('JWT_ISSUER', 'yohpal-live'),
+  jwtAudience: optional('JWT_AUDIENCE', 'yohpal-api'),
+  serviceAuthToken: optional('SERVICE_AUTH_TOKEN', 'development-service-token'),
+  corsAllowedOrigins: optional('CORS_ALLOWED_ORIGINS', 'http://localhost:3100,http://localhost:5002')
+    .split(',').map((origin) => origin.trim()),
+  requestBodyLimit: optional('REQUEST_BODY_LIMIT', '256kb'),
+  rateLimitWindowMs: optionalNumber('RATE_LIMIT_WINDOW_MS', 60_000),
+  rateLimitMax: optionalNumber('RATE_LIMIT_MAX', 120),
   llmProvider: optional('LLM_PROVIDER', 'mock'),
   ttsProvider: optional('TTS_PROVIDER', 'mock'),
   avatarProvider: optional('AVATAR_PROVIDER', 'mock'),
@@ -58,3 +68,4 @@ export const env = {
 };
 
 assertProductionProviders(env);
+assertProductionSecurity(env);

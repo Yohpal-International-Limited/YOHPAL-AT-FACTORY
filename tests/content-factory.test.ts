@@ -7,8 +7,13 @@ import {
 } from '../libs/common/rank-score';
 import { CreateFeedEventRequestSchema, CreateTrendRequestSchema } from '../contracts/api-contracts';
 import { assertProductionProviders } from '../libs/common/production-safety';
+import { assertProductionSecurity } from '../libs/common/production-safety';
 import { ZodValidationPipe } from '../libs/common/zod-validation.pipe';
 import { OptionalTakePipe, RequiredQueryPipe } from '../libs/common/query-validation.pipe';
+import jwt from 'jsonwebtoken';
+import { verifyAccessToken } from '../libs/security/auth';
+import { configuredServiceToken, serviceTokensMatch } from '../libs/security/service-identity.guard';
+import { calculateAuditHash } from '../libs/audit/admin-audit.service';
 
 test('ranking clamps untrusted score inputs to the zero-to-one range', () => {
   const score = calculateRankScore({
@@ -119,4 +124,67 @@ test('required query values reject missing and blank input', () => {
   assert.equal(pipe.transform(' user-1 '), 'user-1');
   assert.throws(() => pipe.transform(undefined));
   assert.throws(() => pipe.transform('   '));
+});
+
+test('JWT verification enforces signature, issuer, audience, and roles', () => {
+  const config = {
+    secret: 'test-secret-that-is-long-enough-for-hs256',
+    issuer: 'yohpal-live',
+    audience: 'yohpal-api',
+  };
+  const token = jwt.sign({ roles: ['operator'] }, config.secret, {
+    algorithm: 'HS256',
+    subject: 'user-1',
+    issuer: config.issuer,
+    audience: config.audience,
+    expiresIn: '5m',
+  });
+  assert.deepEqual(verifyAccessToken(token, config), {
+    id: 'user-1',
+    roles: ['operator'],
+  });
+  assert.throws(() => verifyAccessToken(token, { ...config, audience: 'wrong' }));
+});
+
+test('service identity comparison rejects missing and incorrect credentials', () => {
+  assert.equal(serviceTokensMatch('service-secret', 'service-secret'), true);
+  assert.equal(serviceTokensMatch('wrong-secret', 'service-secret'), false);
+  assert.equal(serviceTokensMatch(undefined, 'service-secret'), false);
+});
+
+test('service identity has a matching local-development fallback', () => {
+  const previous = process.env.SERVICE_AUTH_TOKEN;
+  delete process.env.SERVICE_AUTH_TOKEN;
+  assert.equal(configuredServiceToken(), 'development-service-token');
+  if (previous) process.env.SERVICE_AUTH_TOKEN = previous;
+});
+
+test('production security requires distinct secrets of at least 32 bytes', () => {
+  assert.throws(() => assertProductionSecurity({
+    nodeEnv: 'production',
+    jwtSecret: 'short',
+    serviceAuthToken: 'also-short',
+  }));
+  const shared = 'a'.repeat(32);
+  assert.throws(() => assertProductionSecurity({
+    nodeEnv: 'production',
+    jwtSecret: shared,
+    serviceAuthToken: shared,
+  }));
+});
+
+test('audit hashes are deterministic and reveal record tampering', () => {
+  const record = {
+    previousHash: 'previous',
+    actorId: 'admin-1',
+    actorRoles: ['admin'],
+    action: 'video.publish',
+    targetType: 'video',
+    targetId: 'video-1',
+    requestId: 'request-1',
+    metadata: { method: 'POST' },
+  };
+  const hash = calculateAuditHash(record);
+  assert.equal(hash, calculateAuditHash(record));
+  assert.notEqual(hash, calculateAuditHash({ ...record, action: 'video.reject' }));
 });
