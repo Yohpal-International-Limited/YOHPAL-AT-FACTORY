@@ -5,6 +5,7 @@ import { mkdtemp, rm, writeFile } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { promisify } from 'util';
+import { QuarantinedAsset, quarantineScanAndPromote } from './quarantine';
 
 const execFileAsync = promisify(execFile);
 const MAX_ASSET_BYTES = 200 * 1024 * 1024;
@@ -24,6 +25,7 @@ export type VerifiedAsset = {
   etag?: string;
   sha256: string;
   inspection?: MediaInspection;
+  storage?: QuarantinedAsset;
 };
 
 type FfprobeOutput = {
@@ -89,9 +91,13 @@ export async function verifyRemoteAsset(
   });
   const buffer = Buffer.from(response.data);
   if (buffer.byteLength !== contentLength) throw new Error('Downloaded asset length does not match its declared length');
+  const sha256 = createHash('sha256').update(buffer).digest('hex');
   const inspection = expectedType === 'image' ? undefined : await inspectMedia(buffer, expectedType);
+  const storage = process.env.NODE_ENV === 'production'
+    ? await quarantineScanAndPromote(buffer, `${expectedType}/${sha256}`, contentType, sha256)
+    : undefined;
   return {
     url, contentType, contentLength, etag: head.headers.etag,
-    sha256: createHash('sha256').update(buffer).digest('hex'), inspection,
+    sha256, inspection, storage,
   };
 }

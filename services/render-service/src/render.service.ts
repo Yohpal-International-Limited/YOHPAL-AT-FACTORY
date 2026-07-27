@@ -6,8 +6,11 @@ import { KafkaTopics } from '../../../contracts/kafka-events';
 import {
   CreateVideoJobRequest,
   RenderVideoRequest,
+  ProviderWebhookRequest,
 } from '../../../contracts/api-contracts';
 import { MediaRenderPipeline } from './media-render.pipeline';
+import { configureProviderJobStore } from '../../../ai/providers/yohpal-brain/client';
+import { PrismaProviderJobStore } from '../../../libs/providers/prisma-provider-job-store';
 
 type VideoStatus = 'DRAFT' | 'SCRIPTED' | 'RENDERING' | 'MODERATION' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'FAILED';
 
@@ -15,7 +18,9 @@ type VideoStatus = 'DRAFT' | 'SCRIPTED' | 'RENDERING' | 'MODERATION' | 'APPROVED
 export class RenderService {
   private readonly mediaPipeline = new MediaRenderPipeline();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {
+    configureProviderJobStore(new PrismaProviderJobStore(prisma));
+  }
 
   async createVideoJob(input: CreateVideoJobRequest) {
     const script = await this.prisma.script.findUnique({
@@ -70,6 +75,18 @@ export class RenderService {
     );
 
     return video;
+  }
+
+  async completeProviderWebhook(input: ProviderWebhookRequest) {
+    const job = await this.prisma.providerJobLog.findFirst({ where: { externalJobId: input.jobId } });
+    if (!job) throw new NotFoundException(`Provider job not found: ${input.jobId}`);
+    if (job.status === 'SUCCESS' || job.status === 'FAILED') return job;
+    return this.prisma.providerJobLog.update({
+      where: { id: job.id },
+      data: input.status === 'succeeded'
+        ? { status: 'SUCCESS', responsePayload: input.result as any, completedAt: new Date(), nextPollAt: null }
+        : { status: 'FAILED', errorMessage: input.error || 'Provider reported failure', completedAt: new Date(), nextPollAt: null },
+    });
   }
 
   async createJobsForUnrenderedScripts(take = 20) {
@@ -200,7 +217,7 @@ export class RenderService {
 
   async renderPendingVideos(take = 20) {
     const videos = await this.prisma.video.findMany({
-      where: { status: 'SCRIPTED' },
+      where: { status: { in: ['SCRIPTED', 'RENDERING'] } },
       orderBy: { createdAt: 'asc' },
       take,
     });

@@ -29,6 +29,14 @@ export type CreateVideoJobRequest = z.infer<typeof CreateVideoJobRequestSchema>;
 export const RenderVideoRequestSchema = z.object({ videoId: id }).strict();
 export type RenderVideoRequest = z.infer<typeof RenderVideoRequestSchema>;
 
+export const ProviderWebhookRequestSchema = z.object({
+  jobId: nonEmpty.max(200),
+  status: z.enum(['succeeded', 'failed']),
+  result: z.unknown().optional(),
+  error: nonEmpty.max(2_000).optional(),
+}).strict();
+export type ProviderWebhookRequest = z.infer<typeof ProviderWebhookRequestSchema>;
+
 export const ModerateVideoRequestSchema = RenderVideoRequestSchema;
 export type ModerateVideoRequest = z.infer<typeof ModerateVideoRequestSchema>;
 

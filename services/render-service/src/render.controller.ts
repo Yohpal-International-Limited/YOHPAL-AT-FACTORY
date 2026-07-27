@@ -1,18 +1,37 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, UnauthorizedException } from '@nestjs/common';
 import { RenderService } from './render.service';
 import {
   CreateVideoJobRequest,
   CreateVideoJobRequestSchema,
   RenderVideoRequest,
   RenderVideoRequestSchema,
+  ProviderWebhookRequest,
+  ProviderWebhookRequestSchema,
 } from '../../../contracts/api-contracts';
 import { ok } from '../../../libs/common/http-response';
 import { ZodValidationPipe } from '../../../libs/common/zod-validation.pipe';
 import { OptionalTakePipe } from '../../../libs/common/query-validation.pipe';
+import { ProviderWebhook } from '../../../libs/security/service-identity.guard';
+import { verifyProviderWebhook } from '../../../libs/security/provider-webhook';
 
 @Controller('render')
 export class RenderController {
   constructor(private readonly renderService: RenderService) {}
+
+  @Post('provider-webhooks/yohpal-brain')
+  @ProviderWebhook()
+  async providerWebhook(
+    @Headers('x-yohpal-timestamp') timestamp: string | undefined,
+    @Headers('x-yohpal-signature') signature: string | undefined,
+    @Body(new ZodValidationPipe(ProviderWebhookRequestSchema)) body: ProviderWebhookRequest
+  ) {
+    if (!verifyProviderWebhook({
+      secret: process.env.PROVIDER_WEBHOOK_SECRET || '', timestamp, signature, body,
+    })) {
+      throw new UnauthorizedException('Invalid or expired provider webhook signature');
+    }
+    return ok(await this.renderService.completeProviderWebhook(body));
+  }
 
   @Post('jobs')
   async createVideoJob(@Body(new ZodValidationPipe(CreateVideoJobRequestSchema)) body: CreateVideoJobRequest) {

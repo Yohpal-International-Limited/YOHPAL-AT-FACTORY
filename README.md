@@ -44,6 +44,19 @@ renders are downloaded under a fixed size limit, SHA-256 hashed, inspected with
 evidence. Factual scripts require claim-level entailment against their submitted
 HTTPS citations; `FACT_ENTAILMENT_THRESHOLD` defaults to `0.8`.
 
+Asynchronous provider jobs are keyed and persisted so restarted render workers
+resume polling instead of submitting duplicates. YohPal Brain may complete a job
+through `POST /render/provider-webhooks/yohpal-brain`; requests require an HMAC
+SHA-256 signature in `x-yohpal-signature` over
+`<x-yohpal-timestamp>.<JSON body>`, and timestamps expire after five minutes.
+Set a 32-byte or longer `PROVIDER_WEBHOOK_SECRET` in production.
+
+Production assets first enter `OBJECT_STORAGE_GATEWAY_URL` quarantine, are
+checked through `MALWARE_SCANNER_URL`, and are promoted only after a clean scan.
+Both endpoints must use HTTPS and `OBJECT_STORAGE_GATEWAY_TOKEN` must be at least
+32 bytes. The gateway contract exposes `POST /v1/quarantine` and `/v1/promote`;
+the scanner exposes `POST /v1/scan`.
+
 The initial database migration is committed under `prisma/migrations`. Deploy
 schema changes with `npx prisma migrate deploy`; do not use development
 migrations in production.

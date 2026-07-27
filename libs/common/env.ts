@@ -1,5 +1,5 @@
 import * as dotenv from 'dotenv';
-import { assertProductionProviders, assertProductionSecurity } from './production-safety';
+import { assertProductionMedia, assertProductionProviders, assertProductionSecurity } from './production-safety';
 
 dotenv.config();
 
@@ -45,9 +45,13 @@ export const env = {
 
   cdnBaseUrl: optional('CDN_BASE_URL', 'https://cdn.yohpal.com'),
   objectStorageBucket: optional('OBJECT_STORAGE_BUCKET', 'yohpal-live-videos'),
+  objectStorageGatewayUrl: optional('OBJECT_STORAGE_GATEWAY_URL', ''),
+  objectStorageGatewayToken: optional('OBJECT_STORAGE_GATEWAY_TOKEN', ''),
+  malwareScannerUrl: optional('MALWARE_SCANNER_URL', ''),
 
   aiGatewayUrl: optional('AI_GATEWAY_URL', 'http://localhost:8080'),
   aiProviderApiKey: optional('AI_PROVIDER_API_KEY', ''),
+  providerWebhookSecret: optional('PROVIDER_WEBHOOK_SECRET', ''),
   jwtSecret: optional('JWT_SECRET', 'development-jwt-secret'),
   jwtJwksUri: optional('JWT_JWKS_URI', ''),
   jwtIssuer: optional('JWT_ISSUER', 'yohpal-live'),
@@ -71,3 +75,4 @@ export const env = {
 
 assertProductionProviders(env);
 assertProductionSecurity(env);
+assertProductionMedia(env);

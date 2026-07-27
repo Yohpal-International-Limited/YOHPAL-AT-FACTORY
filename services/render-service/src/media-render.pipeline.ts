@@ -70,10 +70,10 @@ export class MediaRenderPipeline {
       ? await verifyRemoteAsset(composed.thumbnailUrl, 'image')
       : undefined;
     return {
-      audioUrl: audioAsset.url,
-      avatarVideoUrl: avatarAsset.url,
-      videoUrl: videoAsset.url,
-      thumbnailUrl: thumbnailAsset?.url || '',
+      audioUrl: audioAsset.storage?.url || audioAsset.url,
+      avatarVideoUrl: avatarAsset.storage?.url || avatarAsset.url,
+      videoUrl: videoAsset.storage?.url || videoAsset.url,
+      thumbnailUrl: thumbnailAsset?.storage?.url || thumbnailAsset?.url || '',
       durationSeconds: Math.ceil(composed.durationMs / 1000),
       verification: { mode: 'verified', audioAsset, avatarAsset, videoAsset, thumbnailAsset },
     };

@@ -1,14 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FactCheckAgent } from '../ai/agents/fact-check.agent';
-import { withBoundedRetries } from '../ai/providers/yohpal-brain/client';
+import { callYohPalBrain, configureProviderJobStore, withBoundedRetries } from '../ai/providers/yohpal-brain/client';
 import { AxiosError } from 'axios';
+import { webhookSignature, verifyProviderWebhook } from '../libs/security/provider-webhook';
+import { quarantineScanAndPromote } from '../libs/media/quarantine';
 import {
   calculateRankScore,
   freshnessScoreFromDate,
 } from '../libs/common/rank-score';
 import { CreateFeedEventRequestSchema, CreateTrendRequestSchema } from '../contracts/api-contracts';
-import { assertProductionProviders } from '../libs/common/production-safety';
+import { assertProductionMedia, assertProductionProviders } from '../libs/common/production-safety';
 import { assertProductionSecurity } from '../libs/common/production-safety';
 import { ZodValidationPipe } from '../libs/common/zod-validation.pipe';
 import { OptionalTakePipe, RequiredQueryPipe } from '../libs/common/query-validation.pipe';
@@ -87,6 +89,19 @@ test('development permits explicit mock providers', () => {
     moderationProvider: 'mock',
     factCheckProvider: 'mock',
   }));
+});
+
+test('production requires signed provider webhooks and quarantine services', () => {
+  assert.throws(() => assertProductionProviders({
+    nodeEnv: 'production', llmProvider: 'yohpal_brain', ttsProvider: 'yohpal_brain',
+    avatarProvider: 'yohpal_brain', videoRenderProvider: 'yohpal_brain',
+    moderationProvider: 'yohpal_brain', factCheckProvider: 'yohpal_brain',
+    aiProviderApiKey: 'provider-key',
+  }), /PROVIDER_WEBHOOK_SECRET/);
+  assert.throws(() => assertProductionMedia({
+    nodeEnv: 'production', objectStorageGatewayUrl: 'http://storage.example',
+    malwareScannerUrl: 'https://scanner.example', objectStorageGatewayToken: 'x'.repeat(32),
+  }), /HTTPS/);
 });
 
 test('request schemas reject malformed and unknown fields', () => {
@@ -269,4 +284,54 @@ test('provider retries are bounded and use exponential delays', async () => {
   assert.equal(result, 'complete');
   assert.equal(attempts, 3);
   assert.deepEqual(delays, [10, 20]);
+});
+
+test('provider webhooks require a valid unexpired HMAC signature', () => {
+  const secret = 'a'.repeat(32);
+  const body = { jobId: 'remote-1', status: 'succeeded', result: { url: 'https://cdn.example/video.mp4' } };
+  const timestamp = '1700000000';
+  const signature = webhookSignature(secret, timestamp, body);
+  assert.equal(verifyProviderWebhook({ secret, timestamp, signature, body, now: 1_700_000_100_000 }), true);
+  assert.equal(verifyProviderWebhook({ secret, timestamp, signature, body: { ...body, status: 'failed' }, now: 1_700_000_100_000 }), false);
+  assert.equal(verifyProviderWebhook({ secret, timestamp, signature, body, now: 1_700_001_000_000 }), false);
+});
+
+test('assets remain quarantined until a clean malware scan permits promotion', async () => {
+  const operations: string[] = [];
+  const result = await quarantineScanAndPromote(Buffer.from('asset'), 'video/hash', 'video/mp4', 'hash', {
+    quarantine: async () => { operations.push('quarantine'); return { objectKey: 'quarantine/video/hash' }; },
+    scan: async () => { operations.push('scan'); return { clean: true, engine: 'test-scanner' }; },
+    promote: async () => { operations.push('promote'); return { url: 'https://cdn.example/video/hash' }; },
+  });
+  assert.deepEqual(operations, ['quarantine', 'scan', 'promote']);
+  assert.equal(result.scan.clean, true);
+  await assert.rejects(() => quarantineScanAndPromote(Buffer.from('bad'), 'video/bad', 'video/mp4', 'bad', {
+    quarantine: async () => ({ objectKey: 'quarantine/video/bad' }),
+    scan: async () => ({ clean: false, engine: 'test-scanner', signature: 'EICAR' }),
+    promote: async () => { throw new Error('must not promote'); },
+  }), /Malware scanner rejected/);
+});
+
+test('completed durable provider jobs are recovered without another submission', async () => {
+  const previousGateway = process.env.AI_GATEWAY_URL;
+  const previousKey = process.env.AI_PROVIDER_API_KEY;
+  process.env.AI_GATEWAY_URL = 'https://ai.example';
+  process.env.AI_PROVIDER_API_KEY = 'test-key';
+  configureProviderJobStore({
+    find: async () => ({
+      externalJobId: 'remote-1', statusUrl: 'https://ai.example/jobs/remote-1',
+      status: 'SUCCESS', response: { audioUrl: 'https://cdn.example/audio.mp3' },
+    }),
+    accepted: async () => { throw new Error('must not submit'); },
+    polled: async () => { throw new Error('must not poll'); },
+    completed: async () => undefined,
+    failed: async () => undefined,
+  });
+  try {
+    const result = await callYohPalBrain<{ audioUrl: string }>('/v1/tts', { text: 'hello' });
+    assert.equal(result.audioUrl, 'https://cdn.example/audio.mp3');
+  } finally {
+    process.env.AI_GATEWAY_URL = previousGateway;
+    process.env.AI_PROVIDER_API_KEY = previousKey;
+  }
 });

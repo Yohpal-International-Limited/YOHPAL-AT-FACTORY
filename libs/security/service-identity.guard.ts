@@ -1,4 +1,5 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, SetMetadata, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { timingSafeEqual } from 'node:crypto';
 import { Request } from 'express';
 
@@ -15,7 +16,12 @@ export function configuredServiceToken(): string {
 
 @Injectable()
 export class ServiceIdentityGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
+    if (this.reflector.getAllAndOverride<boolean>('providerWebhook', [context.getHandler(), context.getClass()])) {
+      return true;
+    }
     const request = context.switchToHttp().getRequest<Request>();
     const token = request.header('x-yohpal-service-token');
     const expected = configuredServiceToken();
@@ -25,3 +31,5 @@ export class ServiceIdentityGuard implements CanActivate {
     return true;
   }
 }
+
+export const ProviderWebhook = () => SetMetadata('providerWebhook', true);

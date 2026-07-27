@@ -4,12 +4,16 @@ import { publishEvent } from '../../../libs/common/kafka';
 import { KafkaTopics } from '../../../contracts/kafka-events';
 import { GenerateScriptRequest } from '../../../contracts/api-contracts';
 import { ContentGenerationWorkflow } from '../../../ai/workflows/content-generation.workflow';
+import { configureProviderJobStore } from '../../../ai/providers/yohpal-brain/client';
+import { PrismaProviderJobStore } from '../../../libs/providers/prisma-provider-job-store';
 
 @Injectable()
 export class ScriptService {
   private readonly workflow = new ContentGenerationWorkflow();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) {
+    configureProviderJobStore(new PrismaProviderJobStore(prisma));
+  }
 
   async generateFromTrend(input: GenerateScriptRequest) {
     const trend = await this.prisma.trend.findUnique({

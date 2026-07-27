@@ -289,8 +289,11 @@ model ProviderJobLog {
   errorMessage    String?
   fallbackUsed    Boolean           @default(false)
   externalJobId   String?
+  requestKey      String?            @unique
+  statusUrl       String?
   attempts        Int               @default(0)
   lastPolledAt    DateTime?
+  nextPollAt      DateTime?
   startedAt       DateTime          @default(now())
   completedAt     DateTime?
 
@@ -301,6 +304,8 @@ model ProviderJobLog {
   @@index([status])
   @@index([fallbackUsed])
   @@index([startedAt])
+  @@index([externalJobId])
+  @@index([nextPollAt])
 }
 
 model ScriptProviderLog {
