@@ -5,6 +5,7 @@ export type ProviderConfig = {
   avatarProvider: string;
   videoRenderProvider: string;
   moderationProvider: string;
+  factCheckProvider: string;
   aiProviderApiKey?: string;
 };
 

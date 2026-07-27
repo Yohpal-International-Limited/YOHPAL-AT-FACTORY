@@ -129,14 +129,47 @@ export class RenderService {
       backgroundStyle: this.resolveBackgroundStyle(video.category),
     });
 
-    const updated = await this.prisma.video.update({
-      where: { id: video.id },
-      data: {
-        status: 'MODERATION',
-        videoUrl: rendered.videoUrl,
-        thumbnailUrl: rendered.thumbnailUrl,
-        durationSeconds: rendered.durationSeconds,
-      },
+    const updated = await this.prisma.$transaction(async (transaction) => {
+      if (rendered.verification.mode === 'verified') {
+        const { audioAsset, videoAsset } = rendered.verification;
+        if (!videoAsset.inspection?.videoCodec || !videoAsset.inspection.captionsPresent) {
+          throw new Error('Verified video must include a video codec and caption stream');
+        }
+        await transaction.renderMetadata.upsert({
+          where: { videoId: video.id },
+          create: {
+            videoId: video.id,
+            videoSha256: videoAsset.sha256,
+            audioSha256: audioAsset.sha256,
+            videoCodec: videoAsset.inspection.videoCodec,
+            audioCodec: videoAsset.inspection.audioCodec || audioAsset.inspection?.audioCodec,
+            container: videoAsset.inspection.container,
+            captionsPresent: videoAsset.inspection.captionsPresent,
+            inspection: rendered.verification,
+          },
+          update: {
+            videoSha256: videoAsset.sha256,
+            audioSha256: audioAsset.sha256,
+            videoCodec: videoAsset.inspection.videoCodec,
+            audioCodec: videoAsset.inspection.audioCodec || audioAsset.inspection?.audioCodec,
+            container: videoAsset.inspection.container,
+            captionsPresent: videoAsset.inspection.captionsPresent,
+            inspection: rendered.verification,
+            verifiedAt: new Date(),
+          },
+        });
+      } else if (env.nodeEnv === 'production') {
+        throw new Error('Production video cannot enter moderation without verified render metadata');
+      }
+      return transaction.video.update({
+        where: { id: video.id },
+        data: {
+          status: 'MODERATION',
+          videoUrl: rendered.videoUrl,
+          thumbnailUrl: rendered.thumbnailUrl,
+          durationSeconds: rendered.durationSeconds,
+        },
+      });
     });
 
     await publishEvent(
@@ -199,6 +232,7 @@ export class RenderService {
         creator: true,
         score: true,
         moderationLogs: true,
+        renderMetadata: true,
       },
       orderBy: { createdAt: 'desc' },
       take: params.take || 50,
@@ -214,6 +248,7 @@ export class RenderService {
         creator: true,
         score: true,
         moderationLogs: true,
+        renderMetadata: true,
       },
     });
     if (!video) {

@@ -3,7 +3,7 @@ import {
   createTtsProvider,
   createVideoCompositorProvider,
 } from '../../../ai/providers/provider-factory';
-import { verifyRemoteAsset } from '../../../libs/media/asset-verifier';
+import { VerifiedAsset, verifyRemoteAsset } from '../../../libs/media/asset-verifier';
 
 export type MediaRenderPipelineInput = {
   videoId: string;
@@ -22,7 +22,15 @@ export type MediaRenderPipelineOutput = {
   videoUrl: string;
   thumbnailUrl: string;
   durationSeconds: number;
-  verification: Record<string, unknown>;
+  verification:
+    | { mode: 'development-bypass' }
+    | {
+        mode: 'verified';
+        audioAsset: VerifiedAsset;
+        avatarAsset: VerifiedAsset;
+        videoAsset: VerifiedAsset;
+        thumbnailAsset?: VerifiedAsset;
+      };
 };
 
 export class MediaRenderPipeline {
@@ -67,7 +75,7 @@ export class MediaRenderPipeline {
       videoUrl: videoAsset.url,
       thumbnailUrl: thumbnailAsset?.url || '',
       durationSeconds: Math.ceil(composed.durationMs / 1000),
-      verification: { audioAsset, avatarAsset, videoAsset, thumbnailAsset },
+      verification: { mode: 'verified', audioAsset, avatarAsset, videoAsset, thumbnailAsset },
     };
   }
 }

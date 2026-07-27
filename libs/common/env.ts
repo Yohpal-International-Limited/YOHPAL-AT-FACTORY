@@ -63,6 +63,7 @@ export const env = {
   avatarProvider: optional('AVATAR_PROVIDER', 'mock'),
   videoRenderProvider: optional('VIDEO_RENDER_PROVIDER', 'mock'),
   moderationProvider: optional('MODERATION_PROVIDER', 'mock'),
+  factCheckProvider: optional('FACT_CHECK_PROVIDER', 'mock'),
 
   moderationThreshold: optionalNumber('MODERATION_THRESHOLD', 0.78),
   viralPublishThreshold: optionalNumber('VIRAL_PUBLISH_THRESHOLD', 0.75),

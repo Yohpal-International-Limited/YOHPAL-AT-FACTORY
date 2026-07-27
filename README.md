@@ -32,8 +32,17 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5441/yohpal_live_ai npx pr
 ```
 
 Production startup fails when any of `LLM_PROVIDER`, `TTS_PROVIDER`,
-`AVATAR_PROVIDER`, `VIDEO_RENDER_PROVIDER`, or `MODERATION_PROVIDER` is set to
-`mock`. Mock providers remain available for local development and tests.
+`AVATAR_PROVIDER`, `VIDEO_RENDER_PROVIDER`, `MODERATION_PROVIDER`, or
+`FACT_CHECK_PROVIDER` is set to `mock`. Mock providers remain available for
+local development and tests.
+
+YohPal Brain adapters accept immediate responses or asynchronous `202` jobs.
+Configure `AI_JOB_RETRY_ATTEMPTS`, `AI_JOB_RETRY_DELAY_MS`, `AI_JOB_MAX_POLLS`,
+and `AI_JOB_POLL_INTERVAL_MS` to bound transient retries and polling. Production
+renders are downloaded under a fixed size limit, SHA-256 hashed, inspected with
+`ffprobe`, and cannot enter moderation without persisted codec and caption-stream
+evidence. Factual scripts require claim-level entailment against their submitted
+HTTPS citations; `FACT_ENTAILMENT_THRESHOLD` defaults to `0.8`.
 
 The initial database migration is committed under `prisma/migrations`. Deploy
 schema changes with `npx prisma migrate deploy`; do not use development

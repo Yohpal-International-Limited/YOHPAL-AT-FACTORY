@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { FactCheckAgent } from '../ai/agents/fact-check.agent';
+import { withBoundedRetries } from '../ai/providers/yohpal-brain/client';
+import { AxiosError } from 'axios';
 import {
   calculateRankScore,
   freshnessScoreFromDate,
@@ -14,7 +16,7 @@ import jwt from 'jsonwebtoken';
 import { verifyAccessToken } from '../libs/security/auth';
 import { configuredServiceToken, serviceTokensMatch } from '../libs/security/service-identity.guard';
 import { calculateAuditHash } from '../libs/audit/admin-audit.service';
-import { verifyRemoteAsset } from '../libs/media/asset-verifier';
+import { inspectFfprobeOutput, verifyRemoteAsset } from '../libs/media/asset-verifier';
 import { parseLicensedTrendSources } from '../services/trend-service/src/trend-source.connector';
 
 test('ranking clamps untrusted score inputs to the zero-to-one range', () => {
@@ -69,6 +71,7 @@ test('production refuses to start with any mock provider', () => {
       avatarProvider: 'yohpal_brain',
       videoRenderProvider: 'yohpal_brain',
       moderationProvider: 'yohpal_brain',
+      factCheckProvider: 'yohpal_brain',
     }),
     /ttsProvider/
   );
@@ -82,6 +85,7 @@ test('development permits explicit mock providers', () => {
     avatarProvider: 'mock',
     videoRenderProvider: 'mock',
     moderationProvider: 'mock',
+    factCheckProvider: 'mock',
   }));
 });
 
@@ -209,20 +213,60 @@ test('licensed trend source configuration requires provenance fields', () => {
   }])));
 });
 
-test('factual categories require valid evidence citations', async () => {
+test('factual categories require claim-level citation entailment', async () => {
   const withoutEvidence = await new FactCheckAgent().check({
     title: 'Technology update', hook: 'Update', body: 'A factual claim.', category: 'technology',
   });
   assert.equal(withoutEvidence.requiresHumanReview, true);
-  const withEvidence = await new FactCheckAgent().check({
+  const checker = new FactCheckAgent(async (claims, evidence) => claims.map((claim) => ({
+    claim, supported: true, confidence: 0.94, citationUrls: [evidence[0].url],
+  })));
+  const withEvidence = await checker.check({
     title: 'Technology update', hook: 'Update', body: 'A factual claim.', category: 'technology',
     evidence: [{ title: 'Official source', url: 'https://example.org/source', retrievedAt: new Date().toISOString() }],
   });
   assert.equal(withEvidence.requiresHumanReview, false);
   assert.equal(withEvidence.citations.length, 1);
+  assert.ok(withEvidence.claimEntailments.every((claim) => claim.supported));
+  const unsupported = await new FactCheckAgent(async (claims) => claims.map((claim) => ({
+    claim, supported: false, confidence: 0.3, citationUrls: [],
+  }))).check({
+    title: 'Technology update', hook: 'Update', body: 'A factual claim.', category: 'technology',
+    evidence: [{ title: 'Official source', url: 'https://example.org/source', retrievedAt: new Date().toISOString() }],
+  });
+  assert.equal(unsupported.requiresHumanReview, true);
 });
 
 test('asset verification rejects insecure and mock URLs before network access', async () => {
   await assert.rejects(() => verifyRemoteAsset('http://cdn.example/video.mp4', 'video'), /HTTPS/);
   await assert.rejects(() => verifyRemoteAsset('https://cdn.example/mock/video.mp4', 'video'), /Mock assets/);
+});
+
+test('media inspection requires codecs and captions for video', () => {
+  const inspection = inspectFfprobeOutput({
+    streams: [
+      { codec_type: 'video', codec_name: 'h264' },
+      { codec_type: 'audio', codec_name: 'aac' },
+      { codec_type: 'subtitle', codec_name: 'mov_text' },
+    ],
+    format: { format_name: 'mov,mp4', duration: '45.2' },
+  }, 'video');
+  assert.equal(inspection.videoCodec, 'h264');
+  assert.equal(inspection.captionsPresent, true);
+  assert.throws(() => inspectFfprobeOutput({
+    streams: [{ codec_type: 'video', codec_name: 'h264' }],
+  }, 'video'), /caption stream/);
+});
+
+test('provider retries are bounded and use exponential delays', async () => {
+  let attempts = 0;
+  const delays: number[] = [];
+  const result = await withBoundedRetries(async () => {
+    attempts += 1;
+    if (attempts < 3) throw new AxiosError('temporary outage');
+    return 'complete';
+  }, { maxAttempts: 3, baseDelayMs: 10, sleep: async (delay) => { delays.push(delay); } });
+  assert.equal(result, 'complete');
+  assert.equal(attempts, 3);
+  assert.deepEqual(delays, [10, 20]);
 });
