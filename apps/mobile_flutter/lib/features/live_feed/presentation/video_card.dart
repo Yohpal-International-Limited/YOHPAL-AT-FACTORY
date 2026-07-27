@@ -105,16 +105,16 @@ class _VideoCardState extends State<VideoCard> {
 
             // Gradient Overlay (for better text visibility)
             Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
                     Colors.transparent,
-                    Colors.black.withValues(alpha: 0.3),
-                    Colors.black.withValues(alpha: 0.7),
+                    Color.fromARGB(77, 0, 0, 0),
+                    Color.fromARGB(179, 0, 0, 0),
                   ],
-                  stops: const [0.6, 0.8, 1.0],
+                  stops: [0.6, 0.8, 1.0],
                 ),
               ),
             ),
@@ -154,7 +154,7 @@ class _VideoCardState extends State<VideoCard> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withValues(alpha: 0.8),
+                  color: const Color.fromARGB(204, 255, 152, 0),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
