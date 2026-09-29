@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Headers, Param, Post, Query } from '@nestjs/common';
 import { RecommendationService } from './recommendation.service';
 import {
   CreateFeedEventRequest,
@@ -19,10 +19,13 @@ export class RecommendationController {
     @Query('region') region?: string,
     @Query('country') country?: string,
     @Query('language') language?: string,
-    @Query('take', OptionalTakePipe) take?: number
+    @Query('take', OptionalTakePipe) take?: number,
+    @Headers('x-yohpal-tenant-id') tenantId?: string,
   ) {
+    if (!tenantId) throw new ForbiddenException('Tenant context is required');
     const request: SeedFeedRequest = {
       userId,
+      tenantId,
       region,
       country,
       language,
@@ -33,8 +36,12 @@ export class RecommendationController {
   }
 
   @Post('feed/events')
-  async createFeedEvent(@Body(new ZodValidationPipe(CreateFeedEventRequestSchema)) body: CreateFeedEventRequest) {
-    const event = await this.recommendationService.createFeedEvent(body);
+  async createFeedEvent(
+    @Body(new ZodValidationPipe(CreateFeedEventRequestSchema)) body: CreateFeedEventRequest,
+    @Headers('x-yohpal-tenant-id') tenantId?: string,
+  ) {
+    if (!tenantId) throw new ForbiddenException('Tenant context is required');
+    const event = await this.recommendationService.createFeedEvent({ ...body, tenantId });
     return ok(event, { message: 'Feed event recorded' });
   }
 

@@ -18,10 +18,24 @@ export const Public = () => SetMetadata(PUBLIC_KEY, true);
 export type UserRole = 'viewer' | 'operator' | 'moderator' | 'admin';
 export type AuthenticatedUser = {
   id: string;
+  tenantId: string;
   roles: UserRole[];
 };
 
 export type AuthenticatedRequest = Request & { user?: AuthenticatedUser };
+
+function authenticatedUserFromPayload(payload: JwtPayload): AuthenticatedUser {
+  if (!payload.sub) throw new UnauthorizedException('JWT subject is required');
+  const tenantId = payload.tenant_id;
+  if (typeof tenantId !== 'string' || !tenantId.trim()) {
+    throw new UnauthorizedException('JWT tenant_id is required');
+  }
+  const rawRoles = Array.isArray(payload.roles) ? payload.roles : [];
+  const allowedRoles: UserRole[] = ['viewer', 'operator', 'moderator', 'admin'];
+  const roles = rawRoles.filter((role): role is UserRole => allowedRoles.includes(role));
+  if (roles.length === 0) throw new UnauthorizedException('JWT roles are required');
+  return { id: payload.sub, tenantId, roles };
+}
 
 export function verifyAccessToken(
   token: string,
@@ -33,12 +47,7 @@ export function verifyAccessToken(
     audience: config.audience,
   }) as JwtPayload;
 
-  if (!payload.sub) throw new UnauthorizedException('JWT subject is required');
-  const rawRoles = Array.isArray(payload.roles) ? payload.roles : [];
-  const allowedRoles: UserRole[] = ['viewer', 'operator', 'moderator', 'admin'];
-  const roles = rawRoles.filter((role): role is UserRole => allowedRoles.includes(role));
-  if (roles.length === 0) throw new UnauthorizedException('JWT roles are required');
-  return { id: payload.sub, roles };
+  return authenticatedUserFromPayload(payload);
 }
 
 const jwksClients = new Map<string, ReturnType<typeof jwksClient>>();
@@ -83,12 +92,7 @@ export async function verifyConfiguredAccessToken(token: string): Promise<Authen
     issuer,
     audience,
   }) as JwtPayload;
-  if (!payload.sub) throw new UnauthorizedException('JWT subject is required');
-  const allowedRoles: UserRole[] = ['viewer', 'operator', 'moderator', 'admin'];
-  const rawRoles = Array.isArray(payload.roles) ? payload.roles : [];
-  const roles = rawRoles.filter((role): role is UserRole => allowedRoles.includes(role));
-  if (roles.length === 0) throw new UnauthorizedException('JWT roles are required');
-  return { id: payload.sub, roles };
+  return authenticatedUserFromPayload(payload);
 }
 
 @Injectable()

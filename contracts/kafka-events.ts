@@ -68,6 +68,7 @@ export type VideoPublishedEvent = {
 };
 
 export type FeedEventCreatedEvent = {
+  tenantId: string;
   userId: string;
   videoId: string;
   action: string;

@@ -33,6 +33,30 @@ enum AdCampaignStatus {
   CANCELLED
 }
 
+model Tenant {
+  id          String             @id @default(uuid())
+  slug        String             @unique
+  displayName String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  memberships TenantMembership[]
+  videos      Video[]
+  feedEvents  FeedEvent[]
+}
+
+model TenantMembership {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+  @@index([userId])
+}
+
 model Creator {
   id             String   @id @default(uuid())
   username       String   @unique
@@ -136,6 +160,7 @@ model Script {
 
 model Video {
   id              String      @id @default(uuid())
+  tenantId        String      @default("00000000-0000-0000-0000-000000000001")
   creatorId       String?
   avatarId        String?
   scriptId        String?
@@ -161,7 +186,9 @@ model Video {
   providerJobLogs ProviderJobLog[]
   feedEvents      FeedEvent[]
   renderMetadata  RenderMetadata?
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
+  @@index([tenantId])
   @@index([status])
   @@index([category])
   @@index([region])
@@ -228,6 +255,7 @@ model ModerationLog {
 
 model FeedEvent {
   id        String   @id @default(uuid())
+  tenantId  String   @default("00000000-0000-0000-0000-000000000001")
   userId    String
   videoId   String
   action    String
@@ -237,7 +265,9 @@ model FeedEvent {
   createdAt DateTime @default(now())
 
   video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
+  @@index([tenantId, userId])
   @@index([userId])
   @@index([videoId])
   @@index([action])

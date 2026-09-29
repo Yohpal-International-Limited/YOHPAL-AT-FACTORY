@@ -46,6 +46,7 @@ export type PublishVideoRequest = {
 
 export type SeedFeedRequest = {
   userId: string;
+  tenantId: string;
   region?: string;
   country?: string;
   language?: string;

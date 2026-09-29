@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { GatewayService } from './gateway.service';
 import {
   CreateFeedEventRequest,
@@ -16,7 +16,7 @@ import {
 } from '../../../contracts/api-contracts';
 import { ZodValidationPipe } from '../../../libs/common/zod-validation.pipe';
 import { OptionalTakePipe, RequiredQueryPipe } from '../../../libs/common/query-validation.pipe';
-import { Public, Roles } from '../../../libs/security/auth';
+import { AuthenticatedRequest, Public, Roles } from '../../../libs/security/auth';
 import { Audited } from '../../../libs/audit/admin-audit.interceptor';
 import { AdminAuditService } from '../../../libs/audit/admin-audit.service';
 
@@ -221,17 +221,31 @@ export class GatewayController {
   @Get('feed/seed')
   async getSeedFeed(
     @Query('userId', new RequiredQueryPipe('userId')) userId: string,
+    @Req() request: AuthenticatedRequest,
     @Query('region') region?: string,
     @Query('country') country?: string,
     @Query('language') language?: string,
     @Query('take', OptionalTakePipe) take?: number
   ) {
-    return this.gatewayService.getSeedFeed({ userId, region, country, language, take });
+    return this.gatewayService.getSeedFeed({
+      userId: this.requireAuthenticatedUserId(request, userId),
+      tenantId: this.requireAuthenticatedTenantId(request),
+      region,
+      country,
+      language,
+      take,
+    });
   }
 
   @Post('feed/events')
-  async createFeedEvent(@Body(new ZodValidationPipe(CreateFeedEventRequestSchema)) body: CreateFeedEventRequest) {
-    return this.gatewayService.createFeedEvent(body);
+  async createFeedEvent(
+    @Body(new ZodValidationPipe(CreateFeedEventRequestSchema)) body: CreateFeedEventRequest,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.gatewayService.createFeedEvent({
+      ...body,
+      userId: this.requireAuthenticatedUserId(request, body.userId),
+    }, this.requireAuthenticatedTenantId(request));
   }
 
   // ⚡ KILLER FEATURE: Run the entire pipeline in one call!
@@ -246,5 +260,18 @@ export class GatewayController {
   @Roles('admin')
   async listAdminAuditLogs(@Query('take', OptionalTakePipe) take?: number) {
     return this.auditService.list(take ?? 50);
+  }
+
+  private requireAuthenticatedUserId(request: AuthenticatedRequest, requestedUserId: string): string {
+    const authenticatedUserId = request.user?.id;
+    if (!authenticatedUserId || requestedUserId !== authenticatedUserId) {
+      throw new ForbiddenException('User identity must match the access token subject');
+    }
+    return authenticatedUserId;
+  }
+
+  private requireAuthenticatedTenantId(request: AuthenticatedRequest): string {
+    if (!request.user?.tenantId) throw new ForbiddenException('Tenant context is required');
+    return request.user.tenantId;
   }
 }

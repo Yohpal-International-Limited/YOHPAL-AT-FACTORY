@@ -41,6 +41,7 @@ export class RecommendationService {
 
     const videos = await this.prisma.video.findMany({
       where: {
+        tenantId: input.tenantId,
         status: 'PUBLISHED',
         videoUrl: {
           not: null,
@@ -58,6 +59,7 @@ export class RecommendationService {
         feedEvents: {
           where: {
             userId: input.userId,
+            tenantId: input.tenantId,
           },
           take: 20,
           orderBy: {
@@ -127,17 +129,18 @@ export class RecommendationService {
       .slice(0, take);
   }
 
-  async createFeedEvent(input: CreateFeedEventRequest) {
+  async createFeedEvent(input: CreateFeedEventRequest & { tenantId: string }) {
     const video = await this.prisma.video.findUnique({
       where: { id: input.videoId },
     });
 
-    if (!video) {
+    if (!video || video.tenantId !== input.tenantId) {
       throw new NotFoundException(`Video not found: ${input.videoId}`);
     }
 
     const event = await this.prisma.feedEvent.create({
       data: {
+        tenantId: input.tenantId,
         userId: input.userId,
         videoId: input.videoId,
         action: input.action,
@@ -150,6 +153,7 @@ export class RecommendationService {
     await publishEvent(
       KafkaTopics.FEED_EVENT_CREATED,
       {
+        tenantId: event.tenantId,
         userId: event.userId,
         videoId: event.videoId,
         action: event.action,

@@ -118,11 +118,12 @@ export class GatewayService {
 
   // RECOMMENDATION
   async getSeedFeed(query: Record<string, string | number | undefined>) {
-    return this.get(`${this.recommendationServiceUrl}/feed/seed`, query);
+    const { tenantId, ...params } = query;
+    return this.get(`${this.recommendationServiceUrl}/feed/seed`, params, tenantId);
   }
 
-  async createFeedEvent(body: CreateFeedEventRequest) {
-    return this.post(`${this.recommendationServiceUrl}/feed/events`, body);
+  async createFeedEvent(body: CreateFeedEventRequest, tenantId: string) {
+    return this.post(`${this.recommendationServiceUrl}/feed/events`, body, undefined, tenantId);
   }
 
   // FULL PIPELINE (One command to rule them all!)
@@ -156,22 +157,23 @@ export class GatewayService {
     return this.get(`${this.moderationServiceUrl}/script-provider-logs/summary`);
   }
 
-  private async get(url: string, params?: Record<string, unknown>) {
-    const response = await axios.get(url, { params, headers: this.serviceHeaders() });
+  private async get(url: string, params?: Record<string, unknown>, tenantId?: unknown) {
+    const response = await axios.get(url, { params, headers: this.serviceHeaders(tenantId) });
     return response.data;
   }
 
-  private async post(url: string, body: unknown, config?: AxiosRequestConfig) {
+  private async post(url: string, body: unknown, config?: AxiosRequestConfig, tenantId?: string) {
     const response = await axios.post(url, body, {
       ...config,
-      headers: { ...config?.headers, ...this.serviceHeaders() },
+      headers: { ...config?.headers, ...this.serviceHeaders(tenantId) },
     });
     return response.data;
   }
 
-  private serviceHeaders() {
+  private serviceHeaders(tenantId?: unknown) {
     return {
       'x-yohpal-service-token': process.env.SERVICE_AUTH_TOKEN || 'development-service-token',
+      ...(typeof tenantId === 'string' ? { 'x-yohpal-tenant-id': tenantId } : {}),
     };
   }
 }
