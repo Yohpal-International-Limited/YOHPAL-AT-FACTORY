@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import request from 'supertest';
 import { configureHttpSecurity } from '../libs/security/http-security';
 import { JwtAuthGuard, Public, Roles, RolesGuard, verifyConfiguredAccessToken } from '../libs/security/auth';
+import { normalizePath, PrometheusMetrics } from '../libs/observability/prometheus-metrics';
 
 @Controller()
 @Roles('viewer', 'operator', 'moderator', 'admin')
@@ -44,7 +45,7 @@ class SecurityTestModule {}
 
 const secret = 'http-test-secret-that-is-at-least-32-bytes';
 function accessToken(role: 'viewer' | 'operator') {
-  return jwt.sign({ roles: [role] }, secret, {
+  return jwt.sign({ roles: [role], tenant_id: '00000000-0000-0000-0000-000000000001' }, secret, {
     algorithm: 'HS256',
     subject: `${role}-1`,
     issuer: 'test-issuer',
@@ -131,6 +132,14 @@ test('HTTP middleware rate limits excessive requests', async () => {
   }
 });
 
+test('metrics use bounded route labels and expose completed request counters', () => {
+  assert.equal(normalizePath('/render/videos/7a1c5bd8-8329-4f15-9a12-223456789abc'), '/render/videos/:id');
+  assert.equal(normalizePath('/scripts/123'), '/scripts/:id');
+  const metrics = new PrometheusMetrics();
+  metrics.recordHttpRequest('GET', '/render/videos/123', 200, 12.5);
+  assert.match(metrics.render(), /yohpal_http_requests_total\{method="GET",path="\/render\/videos\/:id",status="200"\} 1/);
+});
+
 test('JWKS verification accepts a newly rotated signing key', async () => {
   const first = generateKeyPairSync('rsa', { modulusLength: 2048 });
   const second = generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -148,7 +157,7 @@ test('JWKS verification accepts a newly rotated signing key', async () => {
     process.env.JWT_AUDIENCE = 'rotation-audience';
 
     const sign = (key: typeof first.privateKey, kid: string) => jwt.sign(
-      { roles: ['admin'] }, key, {
+      { roles: ['admin'], tenant_id: '00000000-0000-0000-0000-000000000001' }, key, {
         algorithm: 'RS256',
         keyid: kid,
         subject: 'admin-1',

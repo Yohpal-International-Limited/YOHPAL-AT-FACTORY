@@ -96,8 +96,15 @@ test('production requires signed provider webhooks and quarantine services', () 
     nodeEnv: 'production', llmProvider: 'yohpal_brain', ttsProvider: 'yohpal_brain',
     avatarProvider: 'yohpal_brain', videoRenderProvider: 'yohpal_brain',
     moderationProvider: 'yohpal_brain', factCheckProvider: 'yohpal_brain',
-    aiProviderApiKey: 'provider-key',
+    aiProviderApiKey: 'provider-key', aiGatewayUrl: 'https://provider.example',
   }), /PROVIDER_WEBHOOK_SECRET/);
+  assert.throws(() => assertProductionProviders({
+    nodeEnv: 'production', llmProvider: 'yohpal_brain', ttsProvider: 'yohpal_brain',
+    avatarProvider: 'yohpal_brain', videoRenderProvider: 'yohpal_brain',
+    moderationProvider: 'yohpal_brain', factCheckProvider: 'yohpal_brain',
+    aiProviderApiKey: 'provider-key', providerWebhookSecret: 'x'.repeat(32),
+    aiGatewayUrl: 'http://provider.example',
+  }), /AI_GATEWAY_URL/);
   assert.throws(() => assertProductionMedia({
     nodeEnv: 'production', objectStorageGatewayUrl: 'http://storage.example',
     malwareScannerUrl: 'https://scanner.example', objectStorageGatewayToken: 'x'.repeat(32),
@@ -153,7 +160,7 @@ test('JWT verification enforces signature, issuer, audience, and roles', () => {
     issuer: 'yohpal-live',
     audience: 'yohpal-api',
   };
-  const token = jwt.sign({ roles: ['operator'] }, config.secret, {
+  const token = jwt.sign({ roles: ['operator'], tenant_id: '00000000-0000-0000-0000-000000000001' }, config.secret, {
     algorithm: 'HS256',
     subject: 'user-1',
     issuer: config.issuer,
@@ -162,9 +169,14 @@ test('JWT verification enforces signature, issuer, audience, and roles', () => {
   });
   assert.deepEqual(verifyAccessToken(token, config), {
     id: 'user-1',
+    tenantId: '00000000-0000-0000-0000-000000000001',
     roles: ['operator'],
   });
   assert.throws(() => verifyAccessToken(token, { ...config, audience: 'wrong' }));
+  const missingTenant = jwt.sign({ roles: ['operator'] }, config.secret, {
+    algorithm: 'HS256', subject: 'user-1', issuer: config.issuer, audience: config.audience, expiresIn: '5m',
+  });
+  assert.throws(() => verifyAccessToken(missingTenant, config), /tenant_id/);
 });
 
 test('service identity comparison rejects missing and incorrect credentials', () => {
